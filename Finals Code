@@ -11,6 +11,7 @@ if not os.path.exists('sales.xlsx'):
     ws = wb.active
     ws.title = "Sales"
     ws.append(["Name", "Price", "Products Sold"," Revenue", "Profit"])
+    wb.save('sales.xlsx')
 
 if not os.path.exists('products.xlsx'):
     wb = Workbook()
@@ -26,21 +27,20 @@ def Sales():
     sales_w.resizable(height=False, width=False)
     sales_w.title("Sales")
 
-    # Background Image
+    #Background Image
     sbg = PhotoImage(file='benta.png')
     tk.Label(sales_w, image=sbg).pack()
 
-    # Frame for Treeview
+    #Frame for Treeview
     frames = Frame(sales_w, width=50, height=50, bg="green")
     frames.place(rely=.3, relx=.05)
 
-    # Button Widgets
-    tk.Button(sales_w, text = "About", width=15,bd=0,fg = "black",bg="white",font=("arial",13),command=about).place(relx=.39,rely=.004)
-    tk.Button(sales_w, text = "Products Overview", width=16,bd=0,fg = "black",bg="white",font=("arial",13),command=Products).place(relx=.54,rely=.004)
-    tk.Button(sales_w, text = "Sales Overview", width=15,bd=0,fg = "black",bg="white",font=("arial",13)).place(relx=.71,rely=.004)
-    tk.Button(sales_w, text = "Logout", width=10,bd=0,fg = "black",bg="white",font=("arial",13),command=sales_w.destroy).place(relx=.87,rely=.004)
+    #Button Widgets
+    tk.Button(sales_w, text="Products Overview", width=15, bd=0, fg="black", bg="white", font=("arial", 13), command=Products).place(relx=.55, rely=.004)
+    tk.Button(sales_w, text="Sales Overview", width=15, bd=0, fg="black", bg="white", font=("arial", 13)).place(relx=.70, rely=.004)
+    tk.Button(sales_w, text="Home", width=15, bd=0, fg="black", bg="white", font=("arial", 13), command=sales_w.destroy).place(relx=.85, rely=.004)
 
-    # Treeview for Sales
+    #Treeview for Sales
     trees = ttk.Treeview(frames, columns=("Name", "Price", "Product Sold", "Revenue", "Profit"), show="headings", height=10)
     trees.heading("Name", text="Name")
     trees.heading("Price", text="Price")
@@ -54,16 +54,30 @@ def Sales():
     trees.column("Profit", width=150)
     trees.pack()
 
-    # Load data from products.xlsx
     if os.path.exists('products.xlsx'):
-        wb = load_workbook('products.xlsx')
-        ws = wb.active
+        wb_products = load_workbook('products.xlsx')
+        ws_products = wb_products.active
 
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            name, price,expense, sold = row
+        if not os.path.exists('sales.xlsx'):
+            wb_sales = Workbook()
+            ws_sales = wb_sales.active
+            ws_sales.title = "Sales"
+            ws_sales.append(["Name", "Price", "Products Sold", "Revenue", "Profit"])
+        else:
+            wb_sales = load_workbook('sales.xlsx')
+            ws_sales = wb_sales.active
+
+        for row in ws_sales.iter_rows(min_row=2, max_row=ws_sales.max_row):
+            ws_sales.delete_rows(row[0].row)
+
+        for row in ws_products.iter_rows(min_row=2, values_only=True): 
+            name, price, expense, sold = row
             revenue = price * sold
             profit = revenue - expense
             trees.insert("", "end", values=(name, price, sold, revenue, profit))
+            ws_sales.append([name, price, sold, revenue, profit])
+
+        wb_sales.save('sales.xlsx')
     else:
         messagebox.showerror("Error", "Products file not found!")
 
@@ -125,7 +139,6 @@ def Products():
 
 #Remove selected product
 def remove_product(tree):
-
     selected_item = tree.selection()
     if not selected_item:
         messagebox.showwarning("Warning", "No product selected!")
@@ -153,19 +166,17 @@ def remove_product(tree):
         messagebox.showerror("Error", "Excel file not found!")
 
 def add_product(tree, p_name, price, expense, p_sold):
-    #Retrieve input
     name = p_name.get()
     price_value = price.get()
     expense_value = expense.get()
     sold_value = p_sold.get()
 
-    #Check inputs
     if not name or not price_value or not expense_value or not sold_value:
         messagebox.showwarning("Warning", "All fields are required!")
         return
 
     try:
-        #Convert price, expense, and sold to numbers
+        #Convert to numbers
         price_value = float(price_value)
         expense_value = float(expense_value)
         sold_value = int(sold_value)
@@ -174,6 +185,7 @@ def add_product(tree, p_name, price, expense, p_sold):
         return
 
     tree.insert("", "end", values=(name, price_value, expense_value, sold_value))
+
     #Save Changes
     if not os.path.exists('products.xlsx'):
         wb = Workbook()
@@ -201,11 +213,9 @@ def update_product(tree, p_name, price, expense, p_sold):
         messagebox.showwarning("Warning", "No product selected!")
         return
 
-    #Get product details
     values = tree.item(selected_item, "values")
     old_name = values[0] 
 
-    #Retrieve input values
     new_name = p_name.get()
     new_price = price.get()
     new_expense = expense.get()
@@ -217,7 +227,7 @@ def update_product(tree, p_name, price, expense, p_sold):
         return
 
     try:
-        #Convert price, expense, and sold to numbers
+        #Convert to numbers
         new_price = float(new_price)
         new_expense = float(new_expense)
         new_sold = int(new_sold)
@@ -266,22 +276,37 @@ def load_products(tree):
 def about():
     messagebox.showinfo("About", "This is a Sales Information Software.\nDeveloped by Boca, Gracias, Silvallana, Letada, Labaguis, Labios, Javier, Juan, Red, Cabana, Ramirez, Allapitan, Bacares, and Nanez")
 
+
+
+def total():
+    total_revenue = 0
+    total_profit = 0
+    if os.path.exists('sales.xlsx'):
+        wb = load_workbook('sales.xlsx')
+        ws = wb.active
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            name, price, sold, revenue, profit = row
+            total_revenue += revenue
+            total_profit += profit
+    
+    return total_revenue, total_profit
+
 #Main window /Home
 def main_window():
     windows=tk.Tk()
-    windows.geometry("875x460")
+    windows.geometry("870x458")
     windows.resizable(height=False,width=False)
     windows.title("Sales Information Software")
 
     home=PhotoImage(file='home.png')
     tk.Label(windows,image=home).pack()
 
-    rframe=Frame()
-    rframe.pack
+    total_revenue, total_profit =total()
+    tk.Label(windows, text=f"₱ {total_revenue:.2f}",font=("Times",25),bg="white",fg="black").place(rely=.3,relx=.07)
+    tk.Label(windows, text=f"₱ {total_profit:.2f}",font=("Times",25),bg="white",fg="black").place(rely=.67,relx=.07)
 
-    sframe=Frame()
-    sframe.pack()
-
+    #Button Widgets
     tk.Button(windows, text = "About", width=15,bd=0,fg = "black",bg="white",font=("arial",13),command=about).place(relx=.39,rely=.004)
     tk.Button(windows, text = "Products Overview", width=16,bd=0,fg = "black",bg="white",font=("arial",13),command=Products).place(relx=.54,rely=.004)
     tk.Button(windows, text = "Sales Overview", width=15,bd=0,fg = "black",bg="white",font=("arial",13),command=Sales).place(relx=.71,rely=.004)
